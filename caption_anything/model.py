@@ -249,9 +249,9 @@ class CaptionAnything:
         for cap in dense_captions:
             x, y, w, h = cap['bbox']
             cx, cy = x + w / 2, (y + h / 2)
-            dense_cap_prompt.append(
-                "({}: X:{:.0f}, Y:{:.0f}, Width:{:.0f}, Height:{:.0f})".format(cap['generated_captions']['raw_caption'],
-                                                                               cx, cy, w, h))
+            dense_cap_prompt.append(cap['generated_captions']['raw_caption'])
+                #"({}: X:{:.0f}, Y:{:.0f}, Width:{:.0f}, Height:{:.0f})".format(cap['generated_captions']['raw_caption'],
+                                                                               #cx, cy, w, h))
 
         if verbose:
             all_masks = [np.array(item['mask'].convert('P')) for item in dense_captions]
@@ -296,21 +296,24 @@ class CaptionAnything:
         width, height = get_image_shape(image)
         other_args = {'text_prompt': ""} if self.require_caption_prompt else {}
         img_caption = self.captioner.inference(image, filter=False, args=other_args)['caption']
-        dense_caption_prompt = self.parse_dense_caption(image, topN=10, verbose=verbose, reference_caption=[])
-        scene_text_prompt = self.parse_ocr(image, thres=0.2)
-        # scene_text_prompt = "N/A"
+        dense_caption_prompt = self.parse_dense_caption(image, topN=20, verbose=verbose, reference_caption=[])
+        #scene_text_prompt = self.parse_ocr(image, thres=0.2)
+        scene_text_prompt = "N/A"
 
         # the summarize_prompt is modified from https://github.com/JialianW/GRiT and https://github.com/showlab/Image2Paragraph
-        summarize_prompt = "Imagine you are a blind but intelligent image captioner. You should generate a descriptive, coherent and human-like paragraph based on the given information (a,b,c,d) instead of imagination:\na) Image Resolution: {image_size}\nb) Image Caption:{image_caption}\nc) Dense Caption: {dense_caption}\nd) Scene Text: {scene_text}\nThere are some rules for your response: Show objects with their attributes (e.g. position, color, size, shape, texture).\nPrimarily describe common objects with large size.\nProvide context of the image.\nShow relative position between objects.\nLess than 6 sentences.\nDo not appear number.\nDo not describe any individual letter.\nDo not show the image resolution.\nIngore the white background."
-        prompt = summarize_prompt.format(**{
-            "image_size": "width {} height {}".format(width, height),
-            "image_caption": img_caption,
-            "dense_caption": dense_caption_prompt,
-            "scene_text": scene_text_prompt})
-        print(f'caption everything prompt: {prompt}')
-        response = self.text_refiner.llm(prompt).strip()
+        #summarize_prompt = "Imagine you are a blind but intelligent image captioner. You should generate a descriptive, coherent and human-like paragraph based on the given information (a,b,c,d) instead of imagination:\na) Image Resolution: {image_size}\nb) Image Caption:{image_caption}\nc) Dense Caption: {dense_caption}\nd) Scene Text: {scene_text}\nThere are some rules for your response: Show objects with their attributes (e.g. position, color, size, shape, texture).\nPrimarily describe common objects with large size.\nProvide context of the image.\nShow relative position between objects.\nLess than 6 sentences.\nDo not appear number.\nDo not describe any individual letter.\nDo not show the image resolution.\nIngore the white background."
+        #prompt = summarize_prompt.format(**{
+            #"image_size": "width {} height {}".format(width, height),
+            #"image_caption": img_caption,
+            #"dense_caption": dense_caption_prompt,
+            #"scene_text": scene_text_prompt})
+        #print(f'caption everything prompt: {prompt}')
+        #response = self.text_refiner.llm(prompt).strip()
         # chinese_response = self.text_refiner.llm('Translate it into Chinese: {}'.format(response)).strip()
-        return response
+        if scene_text_prompt:
+            return scene_text_prompt
+        else:
+            return img_caption
 
 
 if __name__ == "__main__":
