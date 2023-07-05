@@ -240,16 +240,18 @@ class CaptionAnything:
                                         verbose=verbose,
                                         is_densecap=True,
                                         args=densecap_args)
-        print('Process Dense Captioning: \n', dense_captions)
+        #print('Process Dense Captioning: \n', dense_captions)
         dense_captions = list(filter(
             lambda x: x['ppl_score'] / (1 + len(x['generated_captions']['raw_caption'].split())) >= densecap_args[
                 'min_ppl_score'], dense_captions))
         dense_captions = list(filter(lambda x: x['clip_score'] >= densecap_args['min_clip_score'], dense_captions))
         dense_cap_prompt = []
+        embeddings = []
         for cap in dense_captions:
             x, y, w, h = cap['bbox']
             cx, cy = x + w / 2, (y + h / 2)
             dense_cap_prompt.append(cap['generated_captions']['raw_caption'])
+            embeddings.append(cap['embeddings'])
                 #"({}: X:{:.0f}, Y:{:.0f}, Width:{:.0f}, Height:{:.0f})".format(cap['generated_captions']['raw_caption'],
                                                                                #cx, cy, w, h))
 
@@ -265,7 +267,8 @@ class CaptionAnything:
                                         'caption': cap['generated_captions']['raw_caption']} for cap in dense_captions]
             draw_bbox(load_image(image, return_type='numpy'), vis_path, dense_cap_painter_input, show_caption=True)
             print(f'Dense Captioning visualization saved in {vis_path}')
-        return ','.join(dense_cap_prompt)
+        # TODO: pooling happens here
+        return ','.join(dense_cap_prompt), torch.cat(embeddings)
 
     def parse_ocr(self, image, thres=0.2):
         width, height = get_image_shape(image)
@@ -296,7 +299,7 @@ class CaptionAnything:
         width, height = get_image_shape(image)
         other_args = {'text_prompt': ""} if self.require_caption_prompt else {}
         img_caption = self.captioner.inference(image, filter=False, args=other_args)['caption']
-        dense_caption_prompt = self.parse_dense_caption(image, topN=20, verbose=verbose, reference_caption=[])
+        dense_caption_prompt, embeddings = self.parse_dense_caption(image, topN=20, verbose=verbose, reference_caption=[])
         #scene_text_prompt = self.parse_ocr(image, thres=0.2)
         scene_text_prompt = "N/A"
 
@@ -310,10 +313,7 @@ class CaptionAnything:
         #print(f'caption everything prompt: {prompt}')
         #response = self.text_refiner.llm(prompt).strip()
         # chinese_response = self.text_refiner.llm('Translate it into Chinese: {}'.format(response)).strip()
-        if scene_text_prompt:
-            return scene_text_prompt
-        else:
-            return img_caption
+        return dense_caption_prompt, embeddings
 
 
 if __name__ == "__main__":

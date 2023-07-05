@@ -38,6 +38,9 @@ class BLIP2Captioner(BaseCaptioner):
         if not self.dialogue:
             inputs = self.processor(image, text = args['text_prompt'], return_tensors="pt").to(self.device, self.torch_dtype)
             out = self.model.generate(**inputs, return_dict_in_generate=True, output_scores=True, max_new_tokens=50)
+            encode = self.model.get_input_embeddings()
+            # generated_embedding_vectors has shape [len(opt_embeddings), hidden_size]
+            embeddings = encode(out.sequences[0])
             caption = self.processor.decode(out.sequences[0], skip_special_tokens=True).strip()
             if self.enable_filter and filter:
                 print('reference caption: {}, caption: {}'.format(args['reference_caption'], caption))
@@ -48,6 +51,7 @@ class BLIP2Captioner(BaseCaptioner):
                 result['ppl_score'] = ppl_score.item()
             print(f"\nProcessed ImageCaptioning by BLIP2Captioner, Output Text: {caption}")
             result['caption'] = caption
+            result['embeddings'] = embeddings
             return result
         else:
             context = []
